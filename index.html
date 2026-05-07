@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>FRUITY CAFE | نظام إدارة متكامل مع Firebase</title>
+    <!-- إضافة وصف للموقع لمحركات البحث -->
+    <meta name="description" content="FRUITY CAFE - أفضل المشروبات والعصائر في حمورية">
+    <meta name="author" content="FRUITY CAFE">
+    <!-- للتسويق عبر واتساب -->
+    <meta property="og:title" content="FRUITY CAFE">
+    <meta property="og:description" content="أهلاً بكم في عالم الإنتعاش والسعادة ✨">
+    <meta property="og:image" content="https://via.placeholder.com/120?text=FRUITY">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root { --orange: #f38118; --bg: #fffaf5; }
+        body { font-family: 'Cairo', sans-serif; background: var(--bg); overflow-x: hidden; }
+        
+        /* تنسيقات إضافية لتحسين الموقع */
+        header { background: linear-gradient(135deg, #f38118 0%, #ffad42 100%); padding: 50px 20px 100px; text-align: center; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(243,129,24,0.3); }
+        .fruit-decor { position: absolute; opacity: 0.2; animation: float 10s infinite linear; pointer-events: none; }
+        @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10%, 90% { opacity: 0.2; } 100% { transform: translateY(-100px) rotate(360deg); opacity: 0; } }
+        .logo-frame { width: 110px; height: 110px; background: white; border-radius: 50%; margin: 0 auto 15px; padding: 5px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,0.15); border: 3px solid rgba(255,255,255,0.5); position: relative; z-index: 10; }
+        .logo-frame img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #f1e9e0; }
+        .admin-btn { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 12px; cursor: pointer; font-size: 0.8rem; font-family: 'Cairo'; z-index: 1000; transition: 0.2s; }
+        .cafe-name { font-size: 2.2rem; font-weight: 900; margin: 5px 0; text-shadow: 2px 4px 10px rgba(0,0,0,0.1); }
+        .welcome-msg { display: inline-block; font-size: 1.3rem; font-weight: 900; margin-top: 15px; background: rgba(0,0,0,0.12); padding: 8px 15px; border-radius: 15px; backdrop-filter: blur(4px); }
+        .info-row { display: block; margin: 8px auto; width: fit-content; }
+        .wa-link { display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.2); padding: 6px 18px; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; border: 1px solid rgba(255,255,255,0.3); }
+        .loc-badge { font-size: 0.85rem; font-weight: bold; background: rgba(0,0,0,0.15); padding: 5px 16px; border-radius: 20px; display: inline-block; }
+        .search-container { padding: 15px; position: sticky; top: 0; background: var(--bg); z-index: 1001; }
+        .search-box { background: white; display: flex; align-items: center; padding: 10px 18px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #ffe0c4; }
+        .search-box input { border: none; outline: none; width: 100%; font-family: 'Cairo'; font-size: 0.9rem; padding: 5px; background: transparent; }
+        .cat-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 15px; scrollbar-width: none; background: var(--bg); position: sticky; top: 65px; z-index: 1000; }
+        .cat-scroll::-webkit-scrollbar { display: none; }
+        .cat-btn { background: white; border: 1px solid #eee; padding: 10px 18px; border-radius: 15px; white-space: nowrap; font-weight: 700; color: #666; cursor: pointer; font-family: 'Cairo'; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .cat-btn.active { background: var(--orange); color: white; border-color: var(--orange); transform: scale(1.02); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; padding: 10px 15px 100px; max-width: 600px; margin: 0 auto; }
+        .card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.04); text-align: center; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #f9f2ea; }
+        .card-body { padding: 10px; }
+        .product-title { font-size: 0.9rem; font-weight: 700; color: #333; }
+        .price-tag { color: var(--orange); font-weight: 900; font-size: 1rem; margin-top: 4px; display: block; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 15px; }
+        .modal-box { background: white; padding: 25px; border-radius: 30px; width: 90%; max-width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: popIn 0.25s ease-out; text-align: center; }
+        #adminModal .modal-box { max-width: 480px; max-height: 85vh; overflow-y: auto; text-align: right; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .section { background: #fdfcfb; padding: 15px; border-radius: 18px; margin-bottom: 15px; border: 1px solid #f1eae1; }
+        .section h4 { margin: 0 0 10px; color: #444; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ddd; border-radius: 10px; font-family: 'Cairo'; font-size: 0.9rem; }
+        .btn-main { background: var(--orange); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-family: 'Cairo'; margin-top: 8px; transition: 0.2s; }
+        .btn-main:hover { opacity: 0.9; transform: scale(0.98); }
+        .btn-close { background: #eee; border: none; padding: 10px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .crud-list { margin-top: 10px; max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; background: #fff; }
+        .crud-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #f5f5f5; font-size: 0.85rem; }
+        .crud-btn { border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; color: white; margin-right: 3px; font-family: 'Cairo'; }
+        .wa-float { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; text-decoration: none; color: white; transition: transform 0.2s; }
+        .wa-float:hover { transform: scale(1.05); }
+        .toast-msg { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 20px; border-radius: 40px; font-size: 0.8rem; z-index: 3000; opacity: 0; transition: 0.2s; pointer-events: none; white-space: nowrap; }
+        
+        @media (max-width: 480px) {
+            .grid { gap: 10px; padding: 10px 10px 80px; }
+            .cafe-name { font-size: 1.8rem; }
+            .cat-btn { padding: 8px 14px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <a id="waFloat" href="#" class="wa-float" target="_blank"><i class="fab fa-whatsapp"></i></a>
+    <header>
+        <button class="admin-btn" onclick="togglePassModal()"><i class="fas fa-cog"></i> الإعدادات</button>
+        <div id="fruits-container"></div>
+        <div class="logo-frame"><img id="mainLogo" src="https://via.placeholder.com/120?text=FRUITY"></div>
+        <div class="cafe-name">FRUITY CAFE</div>
+        <div class="info-row"><a id="phoneDisplay" href="#" class="wa-link"><i class="fas fa-phone-alt"></i> <span></span></a></div>
+        <div class="info-row"><div id="locationDisplay" class="loc-badge"><i class="fas fa-map-marker-alt"></i> </div></div>
+        <div><span class="welcome-msg">أهلاً بكم في عالم الإنتعاش والسعادة ✨</span></div>
+    </header>
+
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fas fa-search" style="color:#ccc; margin-left:10px;"></i>
+            <input type="text" id="searchInput" placeholder="ابحث عن مشروبك أو طلبك..." onkeyup="searchClient()">
+        </div>
+    </div>
+
+    <div class="cat-scroll" id="catBar"></div>
+    <div class="grid" id="display"></div>
+
+    <!-- Password Modal -->
+    <div id="passModal" class="modal">
+        <div class="modal-box">
+            <i class="fas fa-lock" style="font-size:2.5rem; color:var(--orange);"></i>
+            <h3>كلمة المرور للمسؤول</h3>
+            <input type="password" id="passInput" placeholder="••••">
+            <button class="btn-main" onclick="verifyAdmin()">دخول اللوحة</button>
+            <button class="btn-close" onclick="closePassModal()">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminModal" class="modal">
+        <div class="modal-box">
+            <h3 style="text-align:center; color:var(--orange);">🎛️ لوحة التحكم - فايربيز</h3>
+            <div class="section">
+                <h4><i class="fas fa-store"></i> معلومات المقهى</h4>
+                <input type="text" id="setPhone" placeholder="رقم الهاتف (العرض)">
+                <input type="text" id="setWa" placeholder="واتساب (مثال: 963991796076)">
+                <input type="text" id="setLocation" placeholder="العنوان">
+                <button class="btn-main" style="background:#2ecc71;" onclick="saveStoreInfo()">حفظ البيانات</button>
+            </div>
+            <div class="section">
+                <h4><i class="fas fa-image"></i> شعار المقهى</h4>
+                <input type="file" accept="image/*" id="logoUploader">
+                <button class="btn-main" style="background:#f39c12;" onclick="uploadNewLogo()">رفع الشعار وحفظه</button>
+            </div>
+            <div class="section">
+                <h4 id="formTitle">➕ إضافة / تعديل منتج</h4>
+                <input type="text" id="pName" placeholder="اسم المنتج">
+                <input type="number" id="pPrice" placeholder="السعر (ل.س)">
+                <select id="pCat">
+                    <option value="عصائر">🍹 عصائر</option><option value="كوكتيلات">🍸 كوكتيلات</option><option value="باردة">❄️ باردة</option>
+                    <option value="ساخنة">🔥 ساخنة</option><option value="ميلك شيك">🥤 ميلك شيك</option><option value="إمبراطور">👑 إمبراطور</option>
+                    <option value="سلطات">🥗 سلطات</option><option value="كريبات">🥞 كريبات</option><option value="بان كيك">🍩 بان كيك</option>
+                </select>
+                <input type="file" id="pImg" accept="image/*">
+                <button class="btn-main" id="submitBtn" onclick="saveProductToFB()">💾 حفظ المنتج</button>
+                <button class="btn-close" style="background:#f0f0f0; margin-top:6px;" onclick="resetProductForm()">إلغاء التعديل</button>
+            </div>
+            <div class="section">
+                <h4>📋 قائمة المنتجات (تعديل / حذف)</h4>
+                <div class="crud-list" id="crudContainer"></div>
+            </div>
+            <button class="btn-close" onclick="closeAdminPanel()">إغلاق اللوحة</button>
+        </div>
+    </div>
+    <div id="toastMsg" class="toast-msg">✅ تم</div>
+
+    <script>
+        // Firebase Configuration - تم تحديثه للمنطقة الصحيحة
+        const firebaseConfig = {
+            apiKey: "AIzaSyCVlorGP2gj7-z6HBl8Qdz4VSPJvE2d_-I",
+            authDomain: "fruity-cafe-c7da8.firebaseapp.com",
+            databaseURL: "https://fruity-cafe-c7da8-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "fruity-cafe-c7da8",
+            storageBucket: "fruity-cafe-c7da8.firebasestorage.app",
+            messagingSenderId: "674361714846",
+            appId: "1:674361714846:web:a524a8a64ba45a925bb38f"
+        };
+        
+        let database;
+        let isFirebaseReady = false;
+        
+        try {
+            if (firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            database = firebase.database();
+            isFirebaseReady = true;
+            console.log("✅ Firebase initialized");
+        } catch (err) {
+            console.error("Firebase init error", err);
+        }
+
+        let allProducts = [];
+        let currentCatFilter = "الكل";
+        let editingProductKey = null;
+        let categories = ["الكل", "عصائر", "كوكتيلات", "باردة", "ساخنة", "ميلك شيك", "إمبراطور", "سلطات", "كريبات", "بان كيك"];
+
+        function showToast(msg, isError = false) { 
+            let toast = document.getElementById('toastMsg');
+            toast.innerText = msg; 
+            toast.style.opacity = "1"; 
+            toast.style.background = isError ? "#c0392b" : "#2c3e50";
+            setTimeout(() => toast.style.opacity = "0", 2000);
+        }
+
+        async function loadAllFromFirebase() {
+            if (!isFirebaseReady || !database) return;
+            try {
+                const productsSnap = await database.ref('products').once('value');
+                const productsData = productsSnap.val() || {};
+                allProducts = Object.entries(productsData).map(([key, val]) => ({ ...val, key }));
+                
+                const settingsSnap = await database.ref('cafeSettings').once('value');
+                const settings = settingsSnap.val() || {};
+                applyCafeSettings(settings);
+                renderCategoriesBar();
+                renderProductsUI();
+                renderCrudList();
+            } catch (err) { 
+                console.error(err); 
+            }
+        }
+
+        function applyCafeSettings(settings) {
+            let phone = settings.phone || "0991796076";
+            let wa = settings.whatsapp || "963991796076";
+            let location = settings.location || "حمورية - شارع الروضة";
+            let logo = settings.logo || "";
+            document.getElementById('phoneDisplay').innerHTML = `<i class="fas fa-phone-alt"></i> ${phone}`;
+            document.getElementById('phoneDisplay').href = `tel:${phone}`;
+            document.getElementById('waFloat').href = `https://wa.me/${wa}`;
+            document.getElementById('locationDisplay').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${location}`;
+            if (logo) document.getElementById('mainLogo').src = logo;
+            document.getElementById('setPhone').value = phone;
+            document.getElementById('setWa').value = wa;
+            document.getElementById('setLocation').value = location;
+        }
+
+        async function saveStoreInfo() {
+            if (!isFirebaseReady) return showToast("فايربيز غير مهيأ", true);
+            let phone = document.getElementById('setPhone').value.trim();
+            let wa = document.getElementById('setWa').value.trim();
+            let loc = document.getElementById('setLocation').value.trim();
+            let currentLogo = document.getElementById('mainLogo').src;
+            try {
+                await database.ref('cafeSettings').update({ phone: phone, whatsapp: wa, location: loc, logo: currentLogo });
+                showToast("✅ تم حفظ بيانات المقهى");
+                loadAllFromFirebase();
+            } catch(e) { 
+                showToast("فشل الحفظ", true); 
+            }
+        }
+
+        function uploadNewLogo() {
+            let fileInput = document.getElementById('logoUploader');
+            let file = fileInput.files[0];
+            if (!file) return showToast("اختر صورة أولاً", true);
+            compressImage(file, async (compressedBase64) => {
+                if (!isFirebaseReady) return;
+                try {
+                    await database.ref('cafeSettings').update({ logo: compressedBase64 });
+                    document.getElementById('mainLogo').src = compressedBase64;
+                    showToast("✅ تم تحديث اللوغو");
+                    fileInput.value = '';
+                } catch(e) { 
+                    showToast("خطأ بالرفع", true); 
+                }
+            });
+        }
+
+        async function saveProductToFB() {
+            if (!isFirebaseReady) return showToast("فايربيز غير مهيأ", true);
+            let name = document.getElementById('pName').value.trim();
+            let price = parseFloat(document.getElementById('pPrice').value);
+            let cat = document.getElementById('pCat').value;
+            let imageFile = document.getElementById('pImg').files[0];
+            if (!name || isNaN(price)) return showToast("أدخل اسم وسعر صحيح", true);
+            if (!editingProductKey && !imageFile) return showToast("اختر صورة للمنتج الجديد", true);
+            
+            const finishSave = async (imgData) => {
+                let productData = { name, price, cat, img: imgData };
+                try {
+                    if (editingProductKey) {
+                        await database.ref(`products/${editingProductKey}`).update(productData);
+                        showToast("✏️ تم التعديل");
+                    } else {
+                        await database.ref('products').push(productData);
+                        showToast("➕ تم إضافة المنتج");
+                    }
+                    resetProductForm();
+                    loadAllFromFirebase();
+                } catch(err) { 
+                    showToast("فشل في الحفظ", true); 
+                }
+            };
+            
+            if (imageFile) {
+                compressImage(imageFile, finishSave);
+            } else if (editingProductKey) {
+                let existing = allProducts.find(p => p.key === editingProductKey);
+                finishSave(existing.img);
+            } else {
+                finishSave("");
+            }
+        }
+        
+        function compressImage(file, callback) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let img = new Image();
+                img.onload = function() {
+                    let canvas = document.createElement('canvas');
+                    let maxWidth = 280;
+                    let scale = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scale;
+                    let ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    let compressed = canvas.toDataURL('image/jpeg', 0.7);
+                    callback(compressed);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function deleteProduct(key) {
+            if (!confirm("هل أنت متأكد من حذف هذا المنتج نهائياً؟")) return;
+            if (!isFirebaseReady) return showToast("فايربيز غير مهيأ", true);
+            try {
+                await database.ref(`products/${key}`).remove();
+                showToast("🗑️ تم الحذف");
+                loadAllFromFirebase();
+            } catch(e) { 
+                showToast("فشل الحذف", true); 
+            }
+        }
+        
+        function editProduct(key) {
+            let product = allProducts.find(p => p.key === key);
+            if (!product) return;
+            editingProductKey = key;
+            document.getElementById('pName').value = product.name;
+            document.getElementById('pPrice').value = product.price;
+            document.getElementById('pCat').value = product.cat;
+            document.getElementById('formTitle').innerHTML = "✏️ تعديل المنتج";
+            document.getElementById('submitBtn').innerHTML = "تحديث المنتج";
+            document.getElementById('pImg').value = '';
+        }
+        
+        function resetProductForm() {
+            editingProductKey = null;
+            document.getElementById('pName').value = '';
+            document.getElementById('pPrice').value = '';
+            document.getElementById('pImg').value = '';
+            document.getElementById('formTitle').innerHTML = "➕ إضافة منتج جديد";
+            document.getElementById('submitBtn').innerHTML = "💾 حفظ المنتج";
+        }
+        
+        function renderProductsUI() {
+            let searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = allProducts.filter(p => {
+                let catMatch = (currentCatFilter === 'الكل' || p.cat === currentCatFilter);
+                let nameMatch = p.name.toLowerCase().includes(searchTerm);
+                return catMatch && nameMatch;
+            });
+            let container = document.getElementById('display');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px;">🥤 لا توجد منتجات متاحة حالياً</div>';
+                return;
+            }
+            container.innerHTML = filtered.map(p => `
+                <div class="card" onclick="orderProduct('${escapeHtml(p.name)}', ${p.price})">
+                    <img src="${p.img || 'https://via.placeholder.com/200?text=FRUITY'}" onerror="this.src='https://via.placeholder.com/200?text=FRUITY'">
+                    <div class="card-body">
+                        <span class="product-title">${escapeHtml(p.name)}</span>
+                        <span class="price-tag">${Number(p.price).toLocaleString()} ل.س</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // إضافة وظيفة الطلب عبر واتساب
+        function orderProduct(name, price) {
+            let phone = document.getElementById('setWa').value || "963991796076";
+            let message = `السلام عليكم، أريد طلب: ${name} - السعر: ${price} ل.س`;
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+        
+        function renderCrudList() {
+            let crudDiv = document.getElementById('crudContainer');
+            if (!allProducts.length) { 
+                crudDiv.innerHTML = '<div style="padding:12px;text-align:center;">لا توجد أصناف ➕ أضف الآن</div>'; 
+                return; 
+            }
+            crudDiv.innerHTML = allProducts.map(p => `
+                <div class="crud-item">
+                    <span><b>${escapeHtml(p.name)}</b><br><small style="color:#f38118;">${p.price} ل.س</small></span>
+                    <div>
+                        <button class="crud-btn" style="background:#3498db;" onclick="editProduct('${p.key}')">✏️</button>
+                        <button class="crud-btn" style="background:#e74c3c;" onclick="deleteProduct('${p.key}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderCategoriesBar() {
+            let bar = document.getElementById('catBar');
+            bar.innerHTML = categories.map(cat => `<button class="cat-btn ${currentCatFilter === cat ? 'active' : ''}" onclick="filterCategory('${cat}', this)">${getCatIcon(cat)} ${cat}</button>`).join('');
+        }
+        
+        function getCatIcon(cat) {
+            const icons = { 'الكل':'🌟','عصائر':'🍹','كوكتيلات':'🍸','باردة':'❄️','ساخنة':'🔥','ميلك شيك':'🥤','إمبراطور':'👑','سلطات':'🥗','كريبات':'🥞','بان كيك':'🍩' };
+            return icons[cat] || '🍽️';
+        }
+        
+        function filterCategory(cat, btn) {
+            currentCatFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            renderProductsUI();
+        }
+        
+        function searchClient() { renderProductsUI(); }
+        
+        function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+        
+        function togglePassModal() { document.getElementById('passModal').style.display = 'flex'; }
+        function closePassModal() { document.getElementById('passModal').style.display = 'none'; document.getElementById('passInput').value = ''; }
+        function verifyAdmin() {
+            let pwd = document.getElementById('passInput').value;
+            if (pwd === "1234") {
+                closePassModal();
+                document.getElementById('adminModal').style.display = 'flex';
+                loadAllFromFirebase();
+            } else { alert("❌ كلمة مرور خاطئة"); }
+        }
+        function closeAdminPanel() { document.getElementById('adminModal').style.display = 'none'; resetProductForm(); }
+        
+        function initFloatingFruits() {
+            const fruitsList = ['🍎','🍋','🍹','🍓','🍊','🍍','🥝','🥞','🥤'];
+            let container = document.getElementById('fruits-container');
+            for (let i = 0; i < 14; i++) {
+                let div = document.createElement('div'); div.className = 'fruit-decor';
+                div.innerText = fruitsList[Math.floor(Math.random() * fruitsList.length)];
+                div.style.left = Math.random() * 100 + 'vw'; 
+                div.style.animationDelay = Math.random() * 6 + 's';
+                div.style.fontSize = (Math.random() * 20 + 12) + 'px'; 
+                div.style.animationDuration = (Math.random() * 8 + 6) + 's';
+                container.appendChild(div);
+            }
+        }
+        
+        window.onload = () => {
+            initFloatingFruits();
+            if (isFirebaseReady && database) {
+                loadAllFromFirebase();
+                database.ref('products').on('value', () => loadAllFromFirebase());
+                database.ref('cafeSettings').on('value', () => loadAllFromFirebase());
+            } else {
+                document.getElementById('display').innerHTML = '<div style="padding:40px;text-align:center;">⚠️ جاري الاتصال بقاعدة البيانات...</div>';
+                setTimeout(() => { if(isFirebaseReady) loadAllFromFirebase(); }, 1000);
+            }
+        };
+    </script>
+</body>
+</html>
